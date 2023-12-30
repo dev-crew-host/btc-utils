@@ -18,11 +18,33 @@ impl EsploraAPI {
         })
     }
 
-    pub fn raw_call(&self, addons: &str) -> io::Result<Vec<u8>> {
+    pub fn client(&self, addons: &str) -> io::Result<Easy> {
         let mut easy = Easy::new();
-        let mut body = Vec::new();
         easy.url(&format!("{}/{addons}", self.base_url))?;
+        Ok(easy)
+    }
 
+    pub fn raw_post(&self, addons: &str, body: &[u8]) -> io::Result<Vec<u8>> {
+        let mut easy = self.client(addons)?;
+        easy.post(true)?;
+        easy.post_fields_copy(body)?;
+
+        let mut body = Vec::new();
+        {
+            let mut transfer = easy.transfer();
+            transfer.write_function(|data| {
+                body.extend_from_slice(data);
+                Ok(data.len())
+            })?;
+
+            transfer.perform()?;
+        }
+        Ok(body)
+    }
+
+    pub fn raw_call(&self, addons: &str) -> io::Result<Vec<u8>> {
+        let mut easy = self.client(addons)?;
+        let mut body = Vec::new();
         {
             let mut transfer = easy.transfer();
             transfer.write_function(|data| {
