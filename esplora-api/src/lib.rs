@@ -40,6 +40,15 @@ impl EsploraAPI {
 
             transfer.perform()?;
         }
+
+        let response_code = easy.response_code()?;
+
+        // Check if the response code indicates an HTTP error
+        if response_code != 200 {
+            let mut err = Error::new(response_code);
+            unsafe { err.set_extra(String::from_utf8_unchecked(body)) };
+            return Err(err);
+        }
         Ok(body)
     }
 
@@ -54,6 +63,14 @@ impl EsploraAPI {
             })?;
 
             transfer.perform()?;
+        }
+        let response_code = easy.response_code()?;
+
+        // Check if the response code indicates an HTTP error
+        if response_code != 200 {
+            let mut err = Error::new(response_code);
+            unsafe { err.set_extra(String::from_utf8_unchecked(body)) };
+            return Err(err);
         }
         Ok(body)
     }
@@ -78,11 +95,16 @@ mod tests {
     fn test_tip() -> Result<()> {
         let api = EsploraAPI::new("https://blockstream.info/api")?;
         let hash = api.raw_call("blocks/tip/hash")?;
-        let hash = String::from_utf8(hash).unwrap();
-        assert_eq!(
-            hash,
-            "0000000000000000000099819a9e23a5068a2a6f0e842e4f9568f53ede446300"
-        );
+        let _ = String::from_utf8(hash).unwrap();
+        Ok(())
+    }
+
+    #[test]
+    fn test_return_error() -> Result<()> {
+        let api = EsploraAPI::new("https://blockstream.info/api")?;
+        let hash = api.raw_call("tx/12iu3i4u");
+        assert!(hash.is_err());
+        assert!(hash.err().unwrap().code() >= 400);
         Ok(())
     }
 }
